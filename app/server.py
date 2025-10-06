@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field
 from sklearn.preprocessing import StandardScaler
 
 from src.models import Model
@@ -47,18 +47,16 @@ MODEL_STORE = Model()
 class PredictRequest(BaseModel):
     """Schema describing the expected payload for ``/predict``."""
 
-    Temperature: float = Field(..., description="Daily temperature in Celsius")
+    Temperature: float = Field(
+        ...,
+        ge=-50,
+        le=60,
+        description="Daily temperature in Celsius (must be between -50 and 60°C)",
+    )
     Ws: float = Field(..., description="Wind speed (km/h)")
     FFMC: float = Field(..., description="Fine Fuel Moisture Code")
     DMC: float = Field(..., description="Duff Moisture Code")
     ISI: float = Field(..., description="Initial Spread Index")
-
-    @root_validator
-    def validate_feature_ranges(cls, values: dict) -> dict:
-        temperature = values.get("Temperature")
-        if temperature is not None and not (-50 <= temperature <= 60):
-            raise ValueError("Temperature must be between -50 and 60°C")
-        return values
 
 
 class PredictResponse(BaseModel):
