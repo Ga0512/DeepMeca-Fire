@@ -1,79 +1,73 @@
-"""Utility script to exercise the FastAPI endpoints exposed in ``server.py``.
-
-The script sends a prediction request using mocked meteorological features and,
-optionally, runs an image detection request when an image path is provided.
-
-Usage
------
-python teste/test_api.py --base-url http://127.0.0.1:8000 \
-    --image-path path/to/image.jpg
-"""
-from __future__ import annotations
-
-import argparse
-import json
-from pathlib import Path
-from typing import Any, Dict
-
+import cv2
+import time
 import requests
+from tqdm import tqdm
 
-DEFAULT_SAMPLE = {
-    "Temperature": 31,
-    "Ws": 14,
-    "FFMC": 82.6,
-    "DMC": 5.8,
-    "ISI": 3.1,
-}
+# =============================
+# CONFIGURAÇÕES
+# =============================
+BASE_URL = "http://127.0.0.1:9192"  # troque pelo teu ngrok se quiser testar remotamente
+VIDEO_PATH = "data/wildfire.mp4"
+OUTPUT_PATH = "result/wildfire.mp4"
 
+# =============================
+# FUNÇÃO PRINCIPAL
+# =============================
+def process_video(video_path: str, output_path: str):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise RuntimeError(f"Não foi possível abrir o vídeo {video_path}")
 
-def request_prediction(base_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    response = requests.post(f"{base_url}/predict", json=payload, timeout=30)
-    response.raise_for_status()
-    return response.json()
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
-def request_detection(base_url: str, image_path: Path) -> Dict[str, Any]:
-    with image_path.open("rb") as file_obj:
-        files = {"file": (image_path.name, file_obj, "image/jpeg")}
-        response = requests.post(f"{base_url}/detect", files=files, timeout=60)
-        response.raise_for_status()
-        return response.json()
+    print(f"🎥 Processando vídeo ({total_frames} frames)...")
+    for _ in tqdm(range(total_frames)):
+        ret, frame = cap.read()
+        if not ret:
+            break
 
+        _, buffer = cv2.imencode(".jpg", frame)
+        files = {"file": ("frame.jpg", buffer.tobytes(), "image/jpeg")}
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Test the wildfire FastAPI service")
-    parser.add_argument(
-        "--base-url",
-        default="http://127.0.0.1:8000",
-        help="Base URL where the FastAPI service is running",
-    )
-    parser.add_argument(
-        "--image-path",
-        type=Path,
-        help="Optional path to an image for exercising the detection endpoint",
-    )
-    parser.add_argument(
-        "--payload",
-        type=str,
-        help="Optional JSON string overriding the default prediction payload",
-    )
-    args = parser.parse_args()
+        try:
+            response = requests.post(f"{BASE_URL}/detect/", files=files, timeout=30)
+            response.raise_for_status()
+            detections = response.json().get("detections", [])
 
-    payload = DEFAULT_SAMPLE.copy()
-    if args.payload:
-        payload.update(json.loads(args.payload))
+            for det in detections:
+                x1, y1, x2, y2 = det["box"]
+                label = det["class"]
+                conf = det["confidence"]
+                color = (0, 255, 0) if label.lower() == "fire" else (255, 0, 0)
 
-    print("➡️  Sending prediction request...")
-    prediction = request_prediction(args.base_url, payload)
-    print(json.dumps(prediction, indent=2, ensure_ascii=False))
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(
+                    frame,
+                    f"{label} {conf:.2f}",
+                    (x1, max(30, y1 - 10)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    color,
+                    2,
+                )
+        except Exception as e:
+            print("⚠️ Erro ao enviar frame:", e)
 
-    if args.image_path:
-        if not args.image_path.exists():
-            raise FileNotFoundError(f"Image not found: {args.image_path}")
-        print("➡️  Sending detection request...")
-        detection = request_detection(args.base_url, args.image_path)
-        print(json.dumps(detection, indent=2, ensure_ascii=False))
+        out.write(frame)
+        time.sleep(0.05)  # para evitar sobrecarregar o servidor
 
+    cap.release()
+    out.release()
+    print(f"✅ Vídeo processado salvo em: {output_path}")
 
+# =============================
+# EXECUÇÃO
+# =============================
 if __name__ == "__main__":
-    main()
+    process_video(VIDEO_PATH, OUTPUT_PATH)
