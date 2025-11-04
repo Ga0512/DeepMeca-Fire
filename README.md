@@ -128,6 +128,22 @@ A aplicação iniciará automaticamente o servidor FastAPI e carregará o modelo
 
 ### 🔹 Rodando no Google Colab
 
+### ⚙️ Ativando a GPU T4 (essencial para o modelo funcionar corretamente)
+
+Antes de rodar a API, **certifique-se de ativar uma GPU compatível (T4 ou superior)**, pois o modelo exige aceleração por GPU para processar imagens de forma eficiente.
+
+#### 🧩 No Google Colab
+1. Vá até o **menu superior**.  
+2. Clique em **“Ambiente de execução” → “Alterar tipo de ambiente de execução”**.  
+3. Em **“Acelerador de hardware”**, selecione **GPU (T4)**.  
+4. Clique em **Salvar**.  
+5. Espere alguns segundos até o ambiente reiniciar com a GPU ativada.  
+
+Você pode confirmar que a GPU está ativa executando:
+```python
+!nvidia-smi
+```
+
 1. Clone o repositório:
 
 ```bash
