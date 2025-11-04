@@ -22,13 +22,27 @@ import uvicorn
 # CONFIGURAÇÕES GERAIS
 # ===========================
 
-ACCESS_TOKEN = ""
-PHONE_NUMBER_ID = ""
-API_VERSION = "v22.0"
+import argparse
 
-NGROK_TOKEN = ""
-NGROK_PORT = 9192
+# ===========================
+# CONFIGURAÇÕES GERAIS
+# ===========================
 
+parser = argparse.ArgumentParser(description="Inicialização da DeepMeca-Fire API")
+
+parser.add_argument("--access_token", help="Token de acesso da API Meta (sobrescreve o padrão).")
+parser.add_argument("--phone_number_id", help="ID do número de telefone (sobrescreve o padrão).")
+parser.add_argument("--api_version", help="Versão da API Meta (sobrescreve o padrão).")
+parser.add_argument("--ngrok_token", help="Token do Ngrok (sobrescreve o padrão).")
+parser.add_argument("--ngrok_port", type=int, help="Porta do Ngrok (sobrescreve o padrão).")
+
+args, _ = parser.parse_known_args()
+
+ACCESS_TOKEN = args.access_token
+PHONE_NUMBER_ID = args.phone_number_id
+API_VERSION = args.api_version or "v22.0"
+NGROK_TOKEN = args.ngrok_token 
+NGROK_PORT = args.ngrok_port or 9192
 # ===========================
 # INICIALIZAÇÃO DE MODELOS
 # ===========================
