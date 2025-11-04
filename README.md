@@ -131,7 +131,7 @@ A aplicação iniciará automaticamente o servidor FastAPI e carregará o modelo
 1. Clone o repositório:
 
 ```bash
-!git clone REPO_URL
+!git clone https://github.com/Ga0512/DeepMeca-Fire.git
 %cd FireDetectAPI
 ```
 
